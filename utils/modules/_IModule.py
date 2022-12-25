@@ -1,22 +1,15 @@
 import abc
 
-class _IMVModule(metaclass = abc.ABCMeta):
+class _IModule(metaclass = abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
-        return (hasattr(subclass, '_parse') and 
-                callable(subclass._parse) and 
-                hasattr(subclass, '_confirm') and 
+        return (hasattr(subclass, '_confirm') and 
                 callable(subclass._confirm) and
                 hasattr(subclass, '_format') and 
-                callable(subclass._format) and
+                callable(subclass.format) and
                 hasattr(subclass, 'apply') and 
                 callable(subclass.apply) or 
                 NotImplemented)
-
-    @abc.abstractmethod
-    def _parse(cls):
-        """Parse the raw prompt text passed to the module"""
-        raise NotImplementedError
 
     @abc.abstractmethod
     def _confirm(cls):
@@ -24,7 +17,7 @@ class _IMVModule(metaclass = abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def _format(cls):
+    def format(cls):
         """Format the data into printable format (for grid annotations)"""
         raise NotImplementedError
 

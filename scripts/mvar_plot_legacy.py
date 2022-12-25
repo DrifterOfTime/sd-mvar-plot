@@ -28,7 +28,7 @@ def apply_field(field):
     return fun
 
 
-def apply_prompt(p, x, xs):
+def apply_prompt(p: StableDiffusionProcessingTxt2Img, x, xs):
     if xs[0] not in p.prompt and xs[0] not in p.negative_prompt:
         raise RuntimeError(f"Prompt S/R did not find {xs[0]} in prompt or negative prompt.")
 
@@ -171,26 +171,26 @@ axis_options = [
     AxisOption("Cond. Image Mask Weight", float, apply_field("inpainting_mask_weight"), format_value_add_label, None),
 ]
 
-def draw_crp_pages(p, row_pv, col_pv, page_pv, c_labels, r_labels, pg_labels, cell, draw_legend, include_lone_images) -> Processed:
+def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_field_values, page_field_values, col_labels, row_labels, page_labels, cell, draw_legend, include_lone_images) -> Processed:
     """ Draw image grids on multiple images based on options chosen by the user
 
     Args:
         p (`StableDiffusionProcessingTxt2Img`)
-        row_pv, col_pv, page_pv (`list`):
+        row_field_values, col_field_values, page_field_values (`list(Any)`):
             Values after being processed by `process_axis`
-        c_labels, r_labels, pg_labels (`list`):
-            Column values formatted by `` for printing on the grid
+        col_labels, row_labels, page_labels (`list`):
+            Column values formatted for printing on the grid
 
     Returns: (result)
         result (`PIL.Image`):
             Image with `title_text` drawn above `im`
     """
 
-    state.job_count = len(col_pv) * len(row_pv) * len(page_pv) * p.n_iter
+    state.job_count = len(col_field_values) * len(row_field_values) * len(page_field_values) * p.n_iter
 
-    col_texts = [[images.GridAnnotation(c)] for c in c_labels]
-    row_texts = [[images.GridAnnotation(r)] for r in r_labels]
-    page_texts = [[images.GridAnnotation(pg)] for pg in pg_labels]
+    col_texts = [[images.GridAnnotation(c)] for c in col_labels]
+    row_texts = [[images.GridAnnotation(r)] for r in row_labels]
+    page_texts = [[images.GridAnnotation(pg)] for pg in page_labels]
 
     # Temporary list of all the images that are generated to be populated into each grid.
     # Will be filled with empty images for any individual step that fails to process properly.
@@ -201,10 +201,10 @@ def draw_crp_pages(p, row_pv, col_pv, page_pv, c_labels, r_labels, pg_labels, ce
     cell_mode = "P"
     cell_size = (1,1)
 
-    for ipg, pg in enumerate(page_pv):
-        for ir, r in enumerate(row_pv):
-            for ic, c in enumerate(col_pv):
-                state.job = f"{ic + ( ir * ipg ) * len(col_pv) + 1} out of {len(col_pv) * len(row_pv) * len(page_pv)}"
+    for ipg, pg in enumerate(page_field_values):
+        for ir, r in enumerate(row_field_values):
+            for ic, c in enumerate(col_field_values):
+                state.job = f"{ic + ( ir * ipg ) * len(col_field_values) + 1} out of {len(col_field_values) * len(row_field_values) * len(page_field_values)}"
 
                 processed:Processed = cell(c, r, pg)
 
@@ -234,7 +234,7 @@ def draw_crp_pages(p, row_pv, col_pv, page_pv, c_labels, r_labels, pg_labels, ce
                 except:
                     cache_images.append(Image.new(cell_mode, cell_size))
 
-        grid = images.image_grid(cache_images, rows=len(row_pv))
+        grid = images.image_grid(cache_images, rows=len(row_field_values))
         cache_images.clear()
 
         if draw_legend:
@@ -283,24 +283,24 @@ class Script(scripts.Script):
         current_axis_options = [c for c in axis_options if type(c) == AxisOption or type(c) == AxisOptionImg2Img and is_img2img]
 
         with gr.Row():
-            c_type = gr.Dropdown(label="Col type", choices=[c.label for c in current_axis_options], value=current_axis_options[1].label, type="index", elem_id="c_type")
+            col_module = gr.Dropdown(label="Col module", choices=[c.label for c in current_axis_options], value=current_axis_options[1].label, type="index", elem_id="c_type")
             col_values = gr.Textbox(label="Col values", lines=1)
 
         with gr.Row():
-            r_type = gr.Dropdown(label="Row type", choices=[r.label for r in current_axis_options], value=current_axis_options[0].label, type="index", elem_id="r_type")
+            row_module = gr.Dropdown(label="Row module", choices=[r.label for r in current_axis_options], value=current_axis_options[0].label, type="index", elem_id="r_type")
             row_values = gr.Textbox(label="Row values", lines=1)
 
         with gr.Row():
-            pg_type = gr.Dropdown(label="Page type", choices=[pg.label for pg in current_axis_options], value=current_axis_options[0].label, type="index", elem_id="pg_type")
+            page_module = gr.Dropdown(label="Page module", choices=[pg.label for pg in current_axis_options], value=current_axis_options[0].label, type="index", elem_id="pg_type")
             page_values = gr.Textbox(label="Page values", lines=1)
         
         draw_legend = gr.Checkbox(label='Draw legend', value=True)
         include_lone_images = gr.Checkbox(label='Include Separate Images', value=False)
         no_fixed_seeds = gr.Checkbox(label='Keep -1 for seeds', value=False)
 
-        return [c_type, col_values, r_type, row_values, pg_type, page_values, draw_legend, include_lone_images, no_fixed_seeds]
+        return [col_module, col_values, row_module, row_values, page_module, page_values, draw_legend, include_lone_images, no_fixed_seeds]
 
-    def run(self, p, c_type, col_values, r_type, row_values, pg_type, page_values, draw_legend, include_lone_images, no_fixed_seeds):
+    def run(self, p, col_module, col_values, row_module, row_values, page_module, page_values, draw_legend, include_lone_images, no_fixed_seeds):
 
         if not no_fixed_seeds:
             modules.processing.fix_seed(p)
@@ -369,14 +369,14 @@ class Script(scripts.Script):
 
             return valslist
 
-        col_options = axis_options[c_type]
-        col_pv = process_axis(col_options, col_values)
+        col_options = axis_options[col_module]
+        col_field_values = process_axis(col_options, col_values)
 
-        row_options = axis_options[r_type]
-        row_pv = process_axis(row_options, row_values)
+        row_options = axis_options[row_module]
+        row_field_values = process_axis(row_options, row_values)
 
-        page_options = axis_options[pg_type]
-        page_pv = process_axis(page_options, page_values)
+        page_options = axis_options[page_module]
+        page_field_values = process_axis(page_options, page_values)
 
         def fix_axis_seeds(axis_opt, axis_list):
             if axis_opt.label in ['Seed','Var. seed']:
@@ -385,42 +385,42 @@ class Script(scripts.Script):
                 return axis_list
 
         if not no_fixed_seeds:
-            col_pv = fix_axis_seeds(col_options, col_pv)
-            row_pv = fix_axis_seeds(row_options, row_pv)
-            page_pv = fix_axis_seeds(page_options, page_pv)
+            col_field_values = fix_axis_seeds(col_options, col_field_values)
+            row_field_values = fix_axis_seeds(row_options, row_field_values)
+            page_field_values = fix_axis_seeds(page_options, page_field_values)
 
         if col_options.label == 'Steps':
-            total_steps = sum(col_pv) * len(row_pv) * len(page_pv)
+            total_steps = sum(col_field_values) * len(row_field_values) * len(page_field_values)
         elif row_options.label == 'Steps':
-            total_steps = sum(row_pv) * len(col_pv) * len(page_pv)
+            total_steps = sum(row_field_values) * len(col_field_values) * len(page_field_values)
         elif page_options.label == 'Steps':
-            total_steps = sum(page_pv) * len(row_pv) * len(col_pv)
+            total_steps = sum(page_field_values) * len(row_field_values) * len(col_field_values)
         else:
-            total_steps = p.steps * len(row_pv) * len(col_pv) * len(page_pv)
+            total_steps = p.steps * len(row_field_values) * len(col_field_values) * len(page_field_values)
 
         if isinstance(p, StableDiffusionProcessingTxt2Img) and p.enable_hr:
             total_steps *= 2
 
-        print(f"MVar plot will create {len(col_pv) * len(row_pv) * len(page_pv) * p.n_iter} images on {len(page_pv)} {len(col_pv)}x{len(row_pv)} pages. (Total steps to process: {total_steps * p.n_iter})")
+        print(f"MVar plot will create {len(col_field_values) * len(row_field_values) * len(page_field_values) * p.n_iter} images on {len(page_field_values)} {len(col_field_values)}x{len(row_field_values)} pages. (Total steps to process: {total_steps * p.n_iter})")
         shared.total_tqdm.updateTotal(total_steps * p.n_iter)
 
         def cell(col_value, row_value, page_value):
             pc = copy(p)
-            col_options.apply(pc, col_value, col_pv)
-            row_options.apply(pc, row_value, row_pv)
-            page_options.apply(pc, page_value, page_pv)
+            col_options.apply(pc, col_value, col_field_values)
+            row_options.apply(pc, row_value, row_field_values)
+            page_options.apply(pc, page_value, page_field_values)
 
             return process_images(pc)
 
         with SharedSettingsStackHelper():
             processed = draw_crp_pages(
                 p,
-                col_pv=col_pv,
-                row_pv=row_pv,
-                page_pv=page_pv,
-                c_labels=[col_options.format_value(p, col_options, c) for c in col_pv],
-                r_labels=[row_options.format_value(p, row_options, r) for r in row_pv],
-                pg_labels=[page_options.format_value(p, page_options, pg) for pg in page_pv],
+                col_field_values=col_field_values,
+                row_field_values=row_field_values,
+                page_field_values=page_field_values,
+                col_labels=[col_options.format_value(p, col_options, col_value) for col_value in col_field_values],
+                row_labels=[row_options.format_value(p, row_options, row_value) for row_value in row_field_values],
+                page_labels=[page_options.format_value(p, page_options, page_value) for page_value in page_field_values],
                 cell=cell,
                 draw_legend=draw_legend,
                 include_lone_images=include_lone_images
@@ -429,7 +429,7 @@ class Script(scripts.Script):
             if state.interrupted: return processed
 
             if opts.grid_save:
-                for ipg in range(0,len(page_pv)):
+                for ipg in range(0,len(page_field_values)):
                     images.save_image(processed.images[ipg], p.outpath_grids, "mvar_plot_grid", extension=opts.grid_format, prompt=p.prompt, seed=processed.seed, grid=True, p=p)
 
         return processed

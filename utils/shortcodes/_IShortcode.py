@@ -1,6 +1,6 @@
 import abc
 
-class _IMVParser(metaclass = abc.ABCMeta):
+class _IShortcode(metaclass = abc.ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
         return (hasattr(subclass, 'parse') and 
