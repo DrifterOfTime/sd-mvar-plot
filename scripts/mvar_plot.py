@@ -127,12 +127,15 @@ def process_pages(p: StableDiffusionProcessingTxt2Img, col_modules: list(Module)
                 # Draw row and column labels
                 grid = images.draw_grid_annotations(grid, cell_size[0], cell_size[1], col_labels, row_labels)
 
-                # Draw page labels
+                # Draw page label
                 w, h = grid.size
                 empty_string = [[images.GridAnnotation()]]
                 grid = images.draw_grid_annotations(grid, w, h, [images.GridAnnotation(page_labels[ipg])], empty_string)
 
             processed_result.images.insert(ipg * page_module_value_count + ipgv, grid)
+            processed_result.all_prompts.insert(ipg * page_module_value_count + ipgv, "")
+            processed_result.all_seeds.insert(ipg * page_module_value_count + ipgv, -1)
+            processed_result.infotexts.insert(ipg * page_module_value_count + ipgv, "")
 
     if not processed_result:
         print("Unexpected error: `process_pages` failed to return even a single processed image")
