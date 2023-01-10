@@ -201,6 +201,7 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
     cell_mode = "P"
     cell_size = (1,1)
 
+    processed_pages = 0
     for ipg, pg in enumerate(page_field_values):
         for ir, r in enumerate(row_field_values):
             for ic, c in enumerate(col_field_values):
@@ -221,9 +222,6 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
                         # Clear out that first image in case include_lone_images == False
                         processed_result.images.clear()
 
-                    if state.interrupted: return processed_result
-                    if state.skipped: break
-
                     cache_images.append(processed_image)
 
                     if include_lone_images:
@@ -233,6 +231,14 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
                         processed_result.infotexts.append(processed.infotexts[0])
                 except:
                     cache_images.append(Image.new(cell_mode, cell_size))
+                    if state.interrupted:
+                        break
+                # cascade out if interrupted and fill the remainder of the page with blank images
+                if state.interrupted: break
+            if state.interrupted:
+                for i in range(len(cache_images), len(col_field_values) * len(row_field_values)):
+                    cache_images.append(Image.new(cell_mode, cell_size))
+                break
 
         grid = images.image_grid(cache_images, rows=len(row_field_values))
         cache_images.clear()
@@ -247,12 +253,15 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
             grid = images.draw_grid_annotations(grid, w, h, [page_texts[ipg]], empty_string)
 
         processed_result.images.insert(ipg, grid)
+        processed_pages += 1
+
+        if state.interrupted: break
 
     if not processed_result:
         print("Unexpected error: draw_crg_grid failed to return even a single processed image")
-        return Processed()
+        return Processed(), 0
 
-    return processed_result
+    return processed_result, processed_pages
 
 class SharedSettingsStackHelper(object):
     def __enter__(self):
@@ -277,7 +286,7 @@ re_range_count_float = re.compile(r"\s*([+-]?\s*\d+(?:.\d*)?)\s*-\s*([+-]?\s*\d+
 
 class Script(scripts.Script):
     def title(self):
-        return "MVar Plot"
+        return "MVar Plot Legacy"
 
     def ui(self, is_img2img : bool):
         current_axis_options = [c for c in axis_options if type(c) == AxisOption or type(c) == AxisOptionImg2Img and is_img2img]
@@ -401,7 +410,7 @@ class Script(scripts.Script):
         if isinstance(p, StableDiffusionProcessingTxt2Img) and p.enable_hr:
             total_steps *= 2
 
-        print(f"MVar plot will create {len(col_field_values) * len(row_field_values) * len(page_field_values) * p.n_iter} images on {len(page_field_values)} {len(col_field_values)}x{len(row_field_values)} pages. (Total steps to process: {total_steps * p.n_iter})")
+        print(f"MVar plot legacy will create {len(col_field_values) * len(row_field_values) * len(page_field_values) * p.n_iter} images on {len(page_field_values)} {len(col_field_values)}x{len(row_field_values)} pages. (Total steps to process: {total_steps * p.n_iter})")
         shared.total_tqdm.updateTotal(total_steps * p.n_iter)
 
         def cell(col_value, row_value, page_value):
@@ -413,7 +422,7 @@ class Script(scripts.Script):
             return process_images(pc)
 
         with SharedSettingsStackHelper():
-            processed = draw_crp_pages(
+            processed, page_count = draw_crp_pages(
                 p,
                 col_field_values=col_field_values,
                 row_field_values=row_field_values,
@@ -426,10 +435,8 @@ class Script(scripts.Script):
                 include_lone_images=include_lone_images
             )
 
-            if state.interrupted: return processed
-
             if opts.grid_save:
-                for ipg in range(0,len(page_field_values)):
+                for ipg in range(0,page_count):
                     images.save_image(processed.images[ipg], p.outpath_grids, "mvar_plot_grid", extension=opts.grid_format, prompt=p.prompt, seed=processed.seed, grid=True, p=p)
 
         return processed
