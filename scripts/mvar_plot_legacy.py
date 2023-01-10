@@ -253,6 +253,10 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
             grid = images.draw_grid_annotations(grid, w, h, [page_texts[ipg]], empty_string)
 
         processed_result.images.insert(ipg, grid)
+        processed_result.all_prompts.insert(ipg, "")
+        processed_result.all_seeds.insert(ipg, -1)
+        processed_result.infotexts.insert(ipg, "")
+        
         processed_pages += 1
 
         if state.interrupted: break
