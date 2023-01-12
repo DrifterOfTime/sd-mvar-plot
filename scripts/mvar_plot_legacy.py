@@ -201,7 +201,6 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
     cell_mode = "P"
     cell_size = (1,1)
 
-    processed_pages = 0
     for ipg, pg in enumerate(page_field_values):
         for ir, r in enumerate(row_field_values):
             for ic, c in enumerate(col_field_values):
@@ -219,8 +218,6 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
                         processed_result = copy(processed)
                         cell_mode = processed_image.mode
                         cell_size = processed_image.size
-                        # Clear out that first image in case include_lone_images == False
-                        processed_result.images.clear()
 
                     cache_images.append(processed_image)
 
@@ -234,6 +231,7 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
                     if state.interrupted:
                         break
                 # cascade out if interrupted and fill the remainder of the page with blank images
+                # this is to get out of the script faster when the user has selected the "Checkpoint Name" module
                 if state.interrupted: break
             if state.interrupted:
                 for i in range(len(cache_images), len(col_field_values) * len(row_field_values)):
@@ -256,16 +254,14 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
         processed_result.all_prompts.insert(ipg, "")
         processed_result.all_seeds.insert(ipg, -1)
         processed_result.infotexts.insert(ipg, "")
-        
-        processed_pages += 1
 
         if state.interrupted: break
 
     if not processed_result:
-        print("Unexpected error: draw_crg_grid failed to return even a single processed image")
+        print("Unexpected error: draw_crp_pages failed to return even a single processed image")
         return Processed(), 0
 
-    return processed_result, processed_pages
+    return processed_result, ipg + 1
 
 class SharedSettingsStackHelper(object):
     def __enter__(self):
