@@ -2,7 +2,7 @@
 Stable Diffusion MVar Plot script for Automatic1111's WebUI. Currently only the legacy script works, which is basically a simple XYZ script.
 
 ## Legacy Script Installation/Usage
-Download `scripts/mvar_plot_legacy.py` and put it in `webui/scripts`.
+Download `legacy/mvar_plot_legacy.py` and put it in `webui/scripts`.
 Usage is the same as X/Y plot, except in addition to columns and rows, you can automatically produce multiple pages, too. Similar to the XYZ Script that already exists, but I did edit some extra things, such as making interrupting the script more efficient (especially noticable when using the Checkpoint Name module).
 
 ## Goals
