@@ -8,7 +8,7 @@ Usage is the same as X/Y plot, except in addition to columns and rows, you can a
 ## Goals
 Merge several different scripts into one:
 - [x] XYZ script (i.e. my legacy script)
-- [ ] Simple multivariable extension to legacy script (proof of concept)
+- ~Simple multivariable extension to legacy script (proof of concept)~
 - [ ] Prompt Matrix
 - [ ] Some features from Unprompted
     - [ ] Wildcard files (Want to implement this with the option to keep a certain wildcard across all generations in a grid. Rather difficult to do with Unprompted)
