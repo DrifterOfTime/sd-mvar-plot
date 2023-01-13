@@ -1,15 +1,17 @@
-from utils.modules import _IModule
-import re
-from itertools import chain
-import numpy as np
 import csv
+import re
 from io import StringIO
+from itertools import chain
 
-def _parse_string(raw_values):
+import numpy as np
+
+from utils.modules import IModule
+
+def __parse_string(raw_values):
     return [x.strip() for x in chain.from_iterable(csv.reader(StringIO(raw_values)))]
 
-def _parse_range(raw_values, re_range, re_count):
-    valslist = _parse_string(raw_values)
+def __parse_range(raw_values, re_range, re_count):
+    valslist = __parse_string(raw_values)
 
     valslist_ext = []
 
@@ -33,62 +35,61 @@ def _parse_range(raw_values, re_range, re_count):
 
     return valslist_ext
 
-class _IModuleInt(_IModule):
+class IModuleInt(IModule):
     def __init__(cls, raw_values):
         super().__init__(raw_values)
-        cls._type = int
 
         cls._re_range = re.compile(r"\s*([+-]?\s*\d+)\s*-\s*([+-]?\s*\d+)(?:\s*\(([+-]\d+)\s*\))?\s*")
         cls._re_count = re.compile(r"\s*([+-]?\s*\d+)\s*-\s*([+-]?\s*\d+)(?:\s*\[(\d+)\s*\])?\s*")
 
-    def _check(cls):
+    def _check(cls, index):
         is_valid = False
-        value = cls._get_value
+        value = cls.get_label(index)
         try: is_valid = value == int(value)
         except: pass
         return is_valid
 
-    def _format(cls):
-        for v in cls._values:
-            cls._labels.append(f"{cls.name}: {v}")
+    def __format(cls):
+        for v in cls.__values:
+            cls.__labels.append(f"{cls.name}: {v}")
 
     def _parse(cls, raw_values):
-        cls._values = _parse_range(raw_values, cls._re_range, cls._re_count)
+        cls.__values = __parse_range(raw_values, cls._re_range, cls._re_count)
+        for i, v in enumerate(cls._values):
+            cls._values[i] = round(v)
 
-class _IModuleFloat(_IModule):
+class IModuleFloat(IModule):
     def __init__(cls, raw_values):
         super().__init__(raw_values)
-        cls._type = float
 
         cls._re_range = re.compile(r"\s*([+-]?\s*\d+(?:.\d*)?)\s*-\s*([+-]?\s*\d+(?:.\d*)?)(?:\s*\(([+-]\d+(?:.\d*)?)\s*\))?\s*")
         cls._re_count = re.compile(r"\s*([+-]?\s*\d+(?:.\d*)?)\s*-\s*([+-]?\s*\d+(?:.\d*)?)(?:\s*\[(\d+(?:.\d*)?)\s*\])?\s*")
 
-    def _check(cls):
-        value = cls._get_value()
+    def __check(cls, index):
+        value = cls._get_value(index)
         try:
             value = float(value)
             return True
         except: pass
         return False
 
-    def _format(cls):
+    def __format(cls):
         for v in cls._values:
             v = round(v, 8)
             cls._labels.append(f"{cls.name}: {v}")
 
     def _parse(cls, raw_values):
-        cls._values = _parse_range(raw_values, cls._re_range, cls._re_count)
+        cls._values = __parse_range(raw_values, cls._re_range, cls._re_count)
 
-class _IModuleStr(_IModule):
+class IModuleStr(IModule):
     def __init__(cls, raw_values):
         super().__init__(raw_values)
-        cls._type = str
 
-    def _format(cls):
-        cls.labels = cls.values
+    def __format(cls):
+        cls._labels = cls._values
 
     def _parse(cls, raw_values):
-        cls.values = _parse_string(raw_values)
+        cls._values = __parse_string(raw_values)
 
-class _IModuleOther(_IModule):
+class IModuleOther(IModule):
     pass
