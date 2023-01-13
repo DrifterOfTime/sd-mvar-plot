@@ -1,29 +1,33 @@
-from modules.hypernetworks import hypernetwork
 import modules.sd_models as models
-from modules.processing import StableDiffusionProcessingTxt2Img
 import modules.shared as shared
+from modules import sd_models, sd_samplers, shared
+from modules.hypernetworks import hypernetwork
+from modules.processing import StableDiffusionProcessingTxt2Img
 from modules.shared import opts
-from modules import shared, sd_models, sd_samplers
 
-from utils.modules._IModuleTypes import _IModuleInt, _IModuleFloat, _IModuleStr, _IModuleOther
+from utils.modules.__IModuleTypes import *
 
-class Nothing(_IModuleOther):
-    label = "Nothing"
 
-class CFGScale(_IModuleInt):
+class Nothing(IModuleOther):
+    def __init__(cls, raw_values):
+        cls.name = "Nothing"
+
+class CFGScale(IModuleInt):
     """ Runs through multiple CFG scaling values.
     
     Methods are all inherited.
     """
+    def __init__(cls, raw_values):
+        super().__init__(raw_values)
+        cls.name = "CFGScale"
+        cls._field = "cfgscale"
 
-    label = "CFGScale"
-    field = "cfgscale"
-
-class CheckpointName(_IModuleStr):
+class CheckpointName(IModuleStr):
     """ Runs through multiple checkpoints
     """
-
-    label = "Checkpoint Name"
+    def __init__(cls, raw_values):
+        super().__init__(raw_values)
+        cls.name = "Checkpoint Name"
 
     def __enter__(cls):
         cls._original_value = shared.sd_model
@@ -31,14 +35,14 @@ class CheckpointName(_IModuleStr):
     def __exit__(cls, exc_type, exc_value, tb):
         sd_models.reload_model_weights(cls._original_value)
 
-    def _check(cls):
+    def __check(cls):
         value = cls._get_value()
         if models.get_closet_checkpoint_match(value) is None:
             print(f"Unknown checkpoint: {value}")
             return False
         else: return True
     
-    def apply(cls, p):
+    def __apply(cls, p):
         value = cls._get_value()
         if cls._confirm():
             info = models.get_closet_checkpoint_match(value)
@@ -47,7 +51,7 @@ class CheckpointName(_IModuleStr):
             return True
         return False
 
-class CLIPSkip(_IModuleInt):
+class CLIPSkip(IModuleInt):
     """ Runs through different levels of CLIP Skipping
     """
 
@@ -60,7 +64,7 @@ class CLIPSkip(_IModuleInt):
     def __exit__(cls, exc_type, exc_value, tb):
         opts.data[cls._option] = cls._original_value
 
-    def apply(cls, p: StableDiffusionProcessingTxt2Img):
+    def __apply(cls, p: StableDiffusionProcessingTxt2Img):
         cls._check()
         x = cls._values[cls._current_index]
         shared.opts.data["CLIP_stop_at_last_layers"] = x
