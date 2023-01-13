@@ -1,27 +1,52 @@
-import abc
+import csv
+from itertools import chain, permutations
+from modules.shared import opts, state
+from io import StringIO
 
-class _IModule(metaclass = abc.ABCMeta):
-    @classmethod
-    def __subclasshook__(cls, subclass):
-        return (hasattr(subclass, '_confirm') and 
-                callable(subclass._confirm) and
-                hasattr(subclass, '_format') and 
-                callable(subclass.format) and
-                hasattr(subclass, 'apply') and 
-                callable(subclass.apply) or 
-                NotImplemented)
+class _IModule():
+    """ Performs basic functionality shared across most modules
 
-    @abc.abstractmethod
-    def _confirm(cls):
-        """Confirm that the data is the proper type to pass to the generator"""
-        raise NotImplementedError
+    Public Attributes:
+        label: (`str`):
+            Label used for module selection
+        field: (`str`):
+            Field to apply a parsed field value to in a `StableDiffusionProcessingTxt2Img` object
+        value_type: (`type`):
+            If field has a specified value type, this is it
 
-    @abc.abstractmethod
-    def format(cls):
-        """Format the data into printable format (for grid annotations)"""
-        raise NotImplementedError
+    Public Methods:
+        apply(p, loop_index):
+            Applies the current field value to `cls.field` in p
+        check(loop_index, options)
+            Checks if the values are valid.
+    """
 
-    @abc.abstractmethod
-    def apply(cls, i):
-        """Apply the `i`th prompt/parameters to the generator"""
-        raise NotImplementedError
+    def _check(cls):
+        return True
+
+    def _format(cls):
+        pass
+
+    def _parse(cls):
+        return []
+
+    def _get_value(cls):
+        return cls._values[cls._current_index]
+
+    def apply(cls, p):
+        """ Applies the current field value to `cls.field` in `p` if there is one
+        """
+        if cls._check():
+            if cls._field:
+                setattr(p, cls._field, cls._get_value)
+                return True
+            else: raise NotImplementedError("`apply()` requires a valid `_field` or custom implementation")
+        return False
+
+    def __init__(cls, raw_values):
+        cls.name = ""
+        cls._current_index = 0
+        cls._field = ""
+        cls._labels = []
+        cls._values = cls._parse(raw_values)
+        cls._format()

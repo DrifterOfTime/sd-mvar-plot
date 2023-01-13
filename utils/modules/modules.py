@@ -2,13 +2,15 @@ from modules.hypernetworks import hypernetwork
 import modules.sd_models as models
 from modules.processing import StableDiffusionProcessingTxt2Img
 import modules.shared as shared
+from modules.shared import opts
+from modules import shared, sd_models, sd_samplers
 
-from utils.modules.Module import Module
+from utils.modules._IModuleTypes import _IModuleInt, _IModuleFloat, _IModuleStr, _IModuleOther
 
-from utils.shortcodes import Shortcode as sc
+class Nothing(_IModuleOther):
+    label = "Nothing"
 
-
-class CFGScale(Module):
+class CFGScale(_IModuleInt):
     """ Runs through multiple CFG scaling values.
     
     Methods are all inherited.
@@ -16,37 +18,51 @@ class CFGScale(Module):
 
     label = "CFGScale"
     field = "cfgscale"
-    value_type = int
 
-class CheckpointName(Module):
+class CheckpointName(_IModuleStr):
     """ Runs through multiple checkpoints
     """
 
     label = "Checkpoint Name"
-    value_type = str
 
-    def _confirm(cls):
-        for x in cls.parsed_field_values:
-            if models.get_closet_checkpoint_match(x) is None:
-                raise RuntimeError(f"Unknown checkpoint: {x}")
+    def __enter__(cls):
+        cls._original_value = shared.sd_model
+
+    def __exit__(cls, exc_type, exc_value, tb):
+        sd_models.reload_model_weights(cls._original_value)
+
+    def _check(cls):
+        value = cls._get_value()
+        if models.get_closet_checkpoint_match(value) is None:
+            print(f"Unknown checkpoint: {value}")
+            return False
+        else: return True
     
-    def apply(cls, p, loop_index):
-        x = cls.parsed_field_values[loop_index]
-        info = models.get_closet_checkpoint_match(x)
-        if info is None:
-            raise RuntimeError(f"Unknown checkpoint: {x}")
-        models.reload_model_weights(shared.sd_model, info)
-        p.sd_model = shared.sd_model
+    def apply(cls, p):
+        value = cls._get_value()
+        if cls._confirm():
+            info = models.get_closet_checkpoint_match(value)
+            models.reload_model_weights(shared.sd_model, info)
+            p.sd_model = shared.sd_model
+            return True
+        return False
 
-class CLIPSkip(Module):
+class CLIPSkip(_IModuleInt):
     """ Runs through different levels of CLIP Skipping
     """
 
     label = "Clip Skip"
-    value_type = int
+    _option = "CLIP_stop_at_last_layers"
+
+    def __enter__(cls):
+        cls._original_value = opts.data[cls._option]
+
+    def __exit__(cls, exc_type, exc_value, tb):
+        opts.data[cls._option] = cls._original_value
 
     def apply(cls, p: StableDiffusionProcessingTxt2Img):
-        x = cls.processedPrompt[cls.loopIndex]
+        cls._check()
+        x = cls._values[cls._current_index]
         shared.opts.data["CLIP_stop_at_last_layers"] = x
 
 class Denoising(Module):
@@ -54,15 +70,15 @@ class Denoising(Module):
     Module
     """
 
-    super().label = "Denoising"
-    super().field = "denoising_strength"
+    name = "Denoising"
+    _field = "denoising_strength"
 
 class Hypernetwork(Module):
     """
     Module
     """
 
-    super().label = "Hypernetwork"
+    super().name = "Hypernetwork"
 
     def confirm(cls, p):
         for x in cls.processedPrompt:
@@ -86,7 +102,7 @@ class HypernetworkStrength(Module):
     Module
     """
 
-    super().label = "Hypernet Strength"
+    super().name = "Hypernet Strength"
 
     def apply(cls, p):
         x = cls.processedPrompt[cls.loopIndex]
@@ -97,7 +113,7 @@ class ETA(Module):
     Module
     """
 
-    super().label = "ETA"
+    super().name = "ETA"
     super().field = "eta"
 
 class MaskWeight(Module):
@@ -105,7 +121,7 @@ class MaskWeight(Module):
     Module
     """
 
-    super().label = "Mask Weight"
+    super().name = "Mask Weight"
     super().field = "inpainting_mask_weight"
 
 class Permutation(Module):
@@ -122,7 +138,7 @@ class Permutation(Module):
         format(p, options, field_values, current_index)
     """
 
-    super().label = "Permutation"
+    super().name = "Permutation"
 
     def apply(cls, p: StableDiffusionProcessingTxt2Img, field_values, current_index):
         """ Permutes `field_values` in `p.prompt`
@@ -168,14 +184,14 @@ class PromptMatrix(Module):
     Module
     """
 
-    super().label = "Prompt Matrix"
+    super().name = "Prompt Matrix"
 
 class PromptSR(Module):
     """
     Module
     """
 
-    super().label = "Prompt S/R"
+    super().name = "Prompt S/R"
 
     def apply(cls, p, current_index):
         x = cls.processedPrompt[0]
@@ -186,7 +202,7 @@ class PromptSR(Module):
         p.negative_prompt = p.negative_prompt.replace(x, )
 
     def format(cls):
-        if type(value) == float:
+        if types(value) == float:
             value = round(value, 8)
         return value
 
@@ -195,7 +211,7 @@ class Sampler(Module):
     Module
     """
 
-    super().label = "Sampler"
+    super().name = "Sampler"
 
     def confirm(cls):
         for x in cls.processedPrompt:
@@ -211,7 +227,7 @@ class Sampler(Module):
             p.sampler_name = sampler_name
     
     def format(cls):
-        if type(value) == float:
+        if types(value) == float:
             value = round(value, 8)
         return value
 
@@ -220,7 +236,7 @@ class Seed(Module):
     Module
     """
 
-    super().label = "Seed"
+    super().name = "Seed"
     super().field = "seed"
 
 class SigmaChurn(Module):
@@ -228,7 +244,7 @@ class SigmaChurn(Module):
     Module
     """
 
-    super().label = "Sigma Churn"
+    super().name = "Sigma Churn"
     super().field = "s_churn"
 
 class SigmaMax(Module):
@@ -236,7 +252,7 @@ class SigmaMax(Module):
     Module
     """
 
-    super().label = "Sigma Max"
+    super().name = "Sigma Max"
     super().field = "s_tmax"
 
 class SigmaMin(Module):
@@ -244,7 +260,7 @@ class SigmaMin(Module):
     Module
     """
 
-    super().label = "Sigma Min"
+    super().name = "Sigma Min"
     super().field = "s_tmin"
 
 class SigmaNoise(Module):
@@ -252,7 +268,7 @@ class SigmaNoise(Module):
     Module
     """
 
-    super().label = "Sigma Noise"
+    super().name = "Sigma Noise"
     super().field = "s_noise"
 
 class Step(Module):
@@ -260,7 +276,7 @@ class Step(Module):
     Module
     """
 
-    super().label = "Steps"
+    super().name = "Steps"
     super().field = "steps"
 
 class VarSeed(Module):
@@ -268,7 +284,7 @@ class VarSeed(Module):
     Module
     """
 
-    super().label = "Var. Seed"
+    super().name = "Var. Seed"
     super().field = "subseed"
 
 class VarStrength(Module):
@@ -276,6 +292,6 @@ class VarStrength(Module):
     Module
     """
 
-    super().label = "Var. Strength"
+    super().name = "Var. Strength"
     super().field = "subseed_strength"
     
