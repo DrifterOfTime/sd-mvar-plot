@@ -212,24 +212,30 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
                     # this dereference will throw an exception if the image was not processed
                     # (this happens in cases such as if the user stops the process from the UI)
                     processed_image = processed.images[0]
-                    
+
                     if processed_result is None:
                         # Use our first valid processed result as a template container to hold our full results
                         processed_result = copy(processed)
                         cell_mode = processed_image.mode
                         cell_size = processed_image.size
 
-                    cache_images.append(processed_image)
+                        # Clear out that first image to prevent duplicates
+                        processed_result.images.clear()
+                        processed_result.all_prompts.clear()
+                        processed_result.all_seeds.clear()
+                        processed_result.infotexts.clear()
 
                     if include_lone_images:
                         processed_result.images.append(processed_image)
                         processed_result.all_prompts.append(processed.prompt)
                         processed_result.all_seeds.append(processed.seed)
                         processed_result.infotexts.append(processed.infotexts[0])
+
                 except:
-                    cache_images.append(Image.new(cell_mode, cell_size))
-                    if state.interrupted:
-                        break
+                    processed_image = Image.new(cell_mode, cell_size)
+
+                cache_images.append(processed_image)
+
                 # cascade out if interrupted and fill the remainder of the page with blank images
                 # this is to get out of the script faster when the user has selected the "Checkpoint Name" module
                 if state.interrupted: break
@@ -246,9 +252,10 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
             grid = images.draw_grid_annotations(grid, cell_size[0], cell_size[1], col_texts, row_texts)
 
             # Draw page labels
-            w, h = grid.size
-            empty_string = [[images.GridAnnotation()]]
-            grid = images.draw_grid_annotations(grid, w, h, [page_texts[ipg]], empty_string)
+            if len(page_field_values) > 1:
+                w, h = grid.size
+                empty_string = [[images.GridAnnotation()]]
+                grid = images.draw_grid_annotations(grid, w, h, [page_texts[ipg]], empty_string)
 
         processed_result.images.insert(ipg, grid)
         processed_result.all_prompts.insert(ipg, "")
@@ -257,7 +264,7 @@ def draw_crp_pages(p: StableDiffusionProcessingTxt2Img, row_field_values, col_fi
 
         if state.interrupted: break
 
-    if not processed_result:
+    if processed_result is None:
         print("Unexpected error: draw_crp_pages failed to return even a single processed image")
         return Processed(), 0
 
@@ -436,7 +443,7 @@ class Script(scripts.Script):
             )
 
             if opts.grid_save:
-                for ipg in range(0,page_count):
-                    images.save_image(processed.images[ipg], p.outpath_grids, "mvar_plot_grid", extension=opts.grid_format, prompt=p.prompt, seed=processed.seed, grid=True, p=p)
+                for ipage_count in range(0,page_count):
+                    images.save_image(processed.images[ipage_count], p.outpath_grids, "mvar_plot_grid", extension=opts.grid_format, prompt=p.prompt, seed=processed.seed, grid=True, p=p)
 
         return processed
